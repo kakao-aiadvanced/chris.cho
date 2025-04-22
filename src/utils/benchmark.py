@@ -80,7 +80,7 @@ def test_queries_for_expected_relevance(query_list: List[str], expected_result: 
         print()
     
     # 종합 결과 출력
-    success_rate = (success_count / total_queries) * 100
+    success_rate = (success_count / total_queries) * 100 if total_queries > 0 else 0
     print(f"테스트 완료: {success_count}/{total_queries} ({success_rate:.1f}%) 성공\n")
     
     return success_count, total_queries, detailed_results
@@ -101,16 +101,22 @@ def run_complete_evaluation_test(yes_query_list: List[str], no_query_list: List[
     print("=== 종합 평가 테스트 ===")
     
     # "yes" 쿼리 테스트
-    print("\n[관련성 있음 쿼리 테스트]")
-    yes_success, yes_total, yes_details = test_queries_for_expected_relevance(
-        yes_query_list, "yes", persist_directory
-    )
-    
+    if len(yes_query_list) > 0:
+        print("\n[관련성 있는 쿼리 테스트]")
+        yes_success, yes_total, yes_details = test_queries_for_expected_relevance(
+            yes_query_list, "yes", persist_directory
+        )
+    else:
+        yes_success, yes_total, yes_details = 0, 0, []
+
     # "no" 쿼리 테스트
-    print("\n[관련성 없음 쿼리 테스트]")
-    no_success, no_total, no_details = test_queries_for_expected_relevance(
-        no_query_list, "no", persist_directory
-    )
+    if len(yes_query_list) > 0:
+        print("\n[관련성 없음 쿼리 테스트]")
+        no_success, no_total, no_details = test_queries_for_expected_relevance(
+            no_query_list, "no", persist_directory
+        )
+    else:
+        no_success, no_total, no_details = 0, 0, []
     
     # 종합 메트릭 계산
     total_success = yes_success + no_success
@@ -131,11 +137,14 @@ def run_complete_evaluation_test(yes_query_list: List[str], no_query_list: List[
     print(f"총 테스트 쿼리: {total_queries}")
     print(f"총 성공: {total_success}/{total_queries} ({overall_success_rate:.1f}%)")
     print(f"관련성 있음 쿼리 성공율: {yes_success}/{yes_total} ({(yes_success/yes_total*100):.1f}%)")
-    print(f"관련성 없음 쿼리 성공율: {no_success}/{no_total} ({(no_success/no_total*100):.1f}%)")
-    print(f"Precision: {precision:.3f}")
-    print(f"Recall: {recall:.3f}")
-    print(f"F1 Score: {f1:.3f}")
-    
+
+    if no_total > 0:
+        print(f"관련성 없음 쿼리 성공율: {no_success}/{no_total} ({(no_success/no_total*100):.1f}%)")
+
+        print(f"Precision: {precision:.3f}")
+        print(f"Recall: {recall:.3f}")
+        print(f"F1 Score: {f1:.3f}")
+
     # 결과 반환
     return {
         "total_queries": total_queries,

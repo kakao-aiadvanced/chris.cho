@@ -91,45 +91,44 @@ def create_enhanced_hallucination_evaluation_chain(model: str = DEFAULT_MODEL, t
     parser = JsonOutputParser()
 
     enhanced_hallucination_template = """<im_start>system
-당신은 AI 응답에서 환각(hallucination)을 분석하는 전문가입니다. 
-환각이란 제공된 컨텍스트에 없는 내용을 AI가 지어내거나 잘못 해석하여 생성한 정보를 의미합니다.
-
-당신의 임무는 주어진 사용자 질문, 검색된 컨텍스트, 그리고 생성된 답변을 세밀하게 분석하여 
-답변에 환각이 포함되어 있는지 평가하고, 환각이 발견된 경우 해당 부분과 이유를 명확히 설명하는 것입니다.
-
-평가 가이드라인:
-1. 답변의 모든 사실적 주장이 제공된 컨텍스트에 명시적으로 포함되어 있는지 확인하세요.
-2. 컨텍스트에서 직접적으로 추론할 수 없는 추가 정보나 세부 사항이 있는지 확인하세요.
-3. 컨텍스트의 정보를 왜곡하거나 잘못 해석한 내용이 있는지 확인하세요.
-4. 답변이 컨텍스트의 범위를 벗어난 주제로 확장되었는지 확인하세요.
-5. 답변에 잘못된 날짜, 이름, 통계 또는 숫자가 포함되어 있는지 확인하세요.
-6. 일반적인 상식이나 널리 알려진 정보(예: "지구는 둥글다")의 언급은 환각으로 간주하지 마세요.
-7. 답변이 컨텍스트의 정보를 재구성하거나 요약한 경우, 정보의 의미가 보존되었는지 확인하세요.
-
-출력 형식(JSON):
-{
-  "hallucination": "yes" 또는 "no",
-  "analysis": 환각 여부 평가에 대한 간결한 설명,
-  "problematic_parts": 환각이 발견된 경우 답변에서 문제가 된 부분들의 배열(발견되지 않았으면 빈 배열),
-  "suggestions": 답변을 개선하기 위한 제안사항 배열(환각이 없는 경우에도 더 좋은 답변을 위한 제안)
-}
-
-답변의 형식이나 구조가 아닌 사실적 정확성에 초점을 맞추세요.
-<im_end>
-
-<im_start>user
-사용자 질문: {question}
-
-검색된 컨텍스트:
-{context}
-
-생성된 답변:
-{answer}
-<im_end>
-
-<im_start>assistant
-"""
-
+                                        당신은 AI 응답에서 환각(hallucination)을 분석하는 전문가입니다. 
+                                        환각이란 제공된 컨텍스트에 없는 내용을 AI가 지어내거나 잘못 해석하여 생성한 정보를 의미합니다.
+                                        
+                                        당신의 임무는 주어진 사용자 질문, 검색된 컨텍스트, 그리고 생성된 답변을 세밀하게 분석하여 
+                                        답변에 환각이 포함되어 있는지 평가하고, 환각이 발견된 경우 해당 부분과 이유를 명확히 설명하는 것입니다.
+                                        
+                                        평가 가이드라인:
+                                        1. 답변의 모든 사실적 주장이 제공된 컨텍스트에 명시적으로 포함되어 있는지 확인하세요.
+                                        2. 컨텍스트에서 직접적으로 추론할 수 없는 추가 정보나 세부 사항이 있는지 확인하세요.
+                                        3. 컨텍스트의 정보를 왜곡하거나 잘못 해석한 내용이 있는지 확인하세요.
+                                        4. 답변이 컨텍스트의 범위를 벗어난 주제로 확장되었는지 확인하세요.
+                                        5. 답변에 잘못된 날짜, 이름, 통계 또는 숫자가 포함되어 있는지 확인하세요.
+                                        6. 일반적인 상식이나 널리 알려진 정보(예: "지구는 둥글다")의 언급은 환각으로 간주하지 마세요.
+                                        7. 답변이 컨텍스트의 정보를 재구성하거나 요약한 경우, 정보의 의미가 보존되었는지 확인하세요.
+                                        
+                                        출력 형식(JSON):
+                                        {{
+                                          "hallucination": "yes" 또는 "no",
+                                          "analysis": 환각 여부 평가에 대한 간결한 설명,
+                                          "problematic_parts": 환각이 발견된 경우 답변에서 문제가 된 부분들의 배열(발견되지 않았으면 빈 배열),
+                                          "suggestions": 답변을 개선하기 위한 제안사항 배열(환각이 없는 경우에도 더 좋은 답변을 위한 제안)
+                                        }}
+                                        
+                                        답변의 형식이나 구조가 아닌 사실적 정확성에 초점을 맞추세요.
+                                        <im_end>
+                                        
+                                        <im_start>user
+                                        사용자 질문: {question}
+                                        
+                                        검색된 컨텍스트:
+                                        {context}
+                                        
+                                        생성된 답변:
+                                        {answer}
+                                        <im_end>
+                                        
+                                        <im_start>assistant
+                                        """
     enhanced_hallucination_prompt = PromptTemplate(
         template=enhanced_hallucination_template,
         input_variables=["question", "context", "answer"],
@@ -137,4 +136,4 @@ def create_enhanced_hallucination_evaluation_chain(model: str = DEFAULT_MODEL, t
 
     enhanced_hallucination_chain = enhanced_hallucination_prompt | llm | parser
 
-    return enhanced_hallucination_chain 
+    return enhanced_hallucination_chain

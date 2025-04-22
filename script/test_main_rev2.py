@@ -1,4 +1,4 @@
-from config.open_api_config import initialize_openai_api
+from src.config.openai_config import initialize_openai_api
 
 initialize_openai_api()
 

@@ -39,5 +39,6 @@ def initialize_openai_api():
 # LLM 모델 설정
 DEFAULT_MODEL = "gpt-4o-mini"  # 기본 모델
 DEFAULT_TEMPERATURE = 0  # 기본 temperature 값
+#DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large"  # 기본 임베딩 모델
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"  # 기본 임베딩 모델
-DEFAULT_EMBEDDING_DIMENSIONS = 1536  # 기본 임베딩 차원 
+DEFAULT_EMBEDDING_DIMENSIONS = 1536  # 기본 임베딩 차원

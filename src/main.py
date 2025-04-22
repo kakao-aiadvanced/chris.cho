@@ -138,9 +138,14 @@ if __name__ == "__main__":
     """
     # 설정
     urls = [
-        "https://python.langchain.com/docs/get_started/introduction",
-        "https://python.langchain.com/docs/modules/data_connection/retrievers/",
-        "https://python.langchain.com/docs/modules/model_io/prompts/prompt_templates/",
+        "https://lilianweng.github.io/posts/2023-06-23-agent/",
+        "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/",
+        "https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
+
+        #######hallucination generated case
+        #"https://python.langchain.com/docs/get_started/introduction",
+        #"https://python.langchain.com/docs/modules/data_connection/retrievers",
+        #"https://python.langchain.com/docs/modules/model_io/prompts/prompt_templates/",
     ]
     
     # 1. 벡터 스토어 생성
@@ -149,7 +154,10 @@ if __name__ == "__main__":
     
     # 2. 쿼리 실행
     print("\n=== 쿼리 실행 ===")
-    question = "LangChain의 Retriever란 무엇인가요?"
+    good_question = "LangChain의 Retriever란 무엇인가요?"
+    hall_question = "Lil'Log의 저자 Lilian Weng이 2024년에 발표한 Autonomous Agent 2.0 프레임워크의 핵심 기능 3가지를 설명해주세요."
+    question = hall_question
+
     result = run_rag_query(question)
     
     # 3. 결과 출력
@@ -162,7 +170,8 @@ if __name__ == "__main__":
     yes_query_list = [
         "LLM 기반 자율 에이전트 시스템의 계획, 메모리, 도구 사용 구성 요소에 대해 설명하고, 이를 개발 워크플로우에 어떻게 통합할 수 있을까요?",
         "Chain-of-Thought와 같은 프롬프트 엔지니어링 기법이 복잡한 추론 작업에서 LLM의 성능을 어떻게 향상시키는지 설명해주세요.",
-    #    "LLM에 대한 적대적 공격 유형(토큰 조작, 그래디언트 기반 공격, 탈옥 프롬프팅 등)의 작동 방식과 이에 대한 방어 전략은 무엇인가요?" ##리펙터링후, 제대로 동작되지 않는 케이스 ; 추후 확인
+        "LLM에 대한 적대적 공격 유형(토큰 조작, 그래디언트 기반 공격, 탈옥 프롬프팅 등)의 작동 방식과 이에 대한 방어 전략은 무엇인가요?" ##리펙터링후, 제대로 동작되지 않는 케이스 ; 추후 확인
+        ""
     ]
     no_query_list = [
         "맨체스터 유나이티드의 2023-2024 시즌 성적과 주요 선수들의 활약상에 대해 분석해주세요.",

@@ -5,7 +5,7 @@
 from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-def split_documents(documents: List, chunk_size: int = 1000, chunk_overlap: int = 200, debug: bool = False) -> List:
+def split_documents(documents: List, chunk_size: int = 1024, chunk_overlap: int = 256, debug: bool = False) -> List:
     """
     문서를 청크로 분할합니다.
 

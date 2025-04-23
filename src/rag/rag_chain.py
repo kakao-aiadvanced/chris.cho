@@ -4,6 +4,8 @@
 
 from typing import Dict, Any, List, Callable
 from langchain_core.runnables import RunnablePassthrough
+from langchain_openai import OpenAIEmbeddings
+from src.config.openai_config import DEFAULT_EMBEDDING_MODEL
 
 from src.retrieval.retriever import format_docs, format_sources
 from src.evaluation.relevance import create_relevance_evaluation_chain

@@ -183,13 +183,6 @@ if __name__ == "__main__":
 
     # Retriever 생성
     retriever = get_retriever()
-
-    # 2. 쿼리 실행
-    print("\n=== 쿼리 실행 ===")
-    good_question = "LangChain의 Retriever란 무엇인가요?"
-    hall_question = "Lil'Log의 저자 Lilian Weng이 2024년에 발표한 Autonomous Agent 2.0 프레임워크의 핵심 기능 3가지를 설명해주세요."
-    question = hall_question
-
     agent = EnhancedGraphRAGAgent(
         retriever=retriever,
         tavily_api_key=get_tavily_api_key()
@@ -200,26 +193,28 @@ if __name__ == "__main__":
     from pprint import pprint
     
     # Messi 관련 질문으로 테스트
+    #messi_question = "LLM 기반 자율 에이전트 시스템의 계획, 메모리, 도구 사용 구성 요소에 대해 설명하고, 이를 개발 워크플로우에 어떻게 통합할 수 있을까요?"
     messi_question = "Where does Messi play right now?"
-    inputs = {"question": messi_question}  # "question"에서 "query"로 변경
+
 
     # 에이전트의 app 속성에 직접 접근하여 스트림 실행
+    #result = agent.run(messi_question)
+    #print(f"질문: {result['question']}")
+    #print(f"답변: {result['answer']}")
+    inputs = {"question": messi_question}  # "question"에서 "query"로 변경
     for output in agent.app.stream(inputs):
         print(f"!!!!!!!!!!!!! Streaming output: {output}")
-        if output is not None:  # output이 None이 아닌 경우에만 처리
-            for key, value in output.items():
-                print(f"Finished running: {key}:")
-                # value가 None이 아닌 경우에만 처리
-                if value is not None:
-                    # final_answer 키가 있으면 그 값을 출력 (우선순위 1)
-                    if isinstance(value, dict) and "final_answer" in value:
-                        pprint(value["final_answer"])
-                    # generation 키가 있으면 그 값을 출력 (우선순위 2)
-                    elif isinstance(value, dict) and "generation" in value:
-                        pprint(value["generation"])
-                    # 그 외의 경우 전체 상태 출력
-                    else:
-                        pprint(value)
+    if output is not None:  # output이 None이 아닌 경우에만 처리
+        for key, value in output.items():
+            print(f"Finished running: {key}:")
+            # value가 None이 아닌 경우에만 처리
+            if value is not None:
+                # final_answer 키가 있으면 그 값을 출력 (우선순위 1)
+                if isinstance(value, dict) and "answer" in value:
+                    pprint(value["answer"])
+                else:
+                    pprint(value)
+
 
     # 기존 질문으로도 테스트
     '''

@@ -13,7 +13,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from src.embeddings.vector_store import get_embedding_model
 from src.text_processing.splitter import split_documents, group_chunks_by_source
-
+from src.config import openai_config
 def generate_abstract(content: str, llm: ChatOpenAI) -> str:
     """
     주어진 내용에 대한 추상적 요약을 생성합니다.
@@ -259,7 +259,7 @@ def get_raptor_retriever(persist_directory: str = "./raptor_index"):
         return raptor_retrieval(query, raptor_index, embedding_model, top_k)
     
     class RaptorRetriever:
-        def get_relevant_documents(self, query: str, top_k: int = 6):
+        def get_relevant_documents(self, query: str, top_k: int = openai_config.DEFAULT_MAX_PAGE_SIZE):
             return retrieve_func(query, top_k)
     
     return RaptorRetriever()

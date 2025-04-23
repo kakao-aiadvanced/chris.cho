@@ -17,8 +17,8 @@ from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 from tavily import TavilyClient
 
-from src.config.openai_config import DEFAULT_MODEL, DEFAULT_TEMPERATURE
-
+from src.config import openai_config
+from src.utils.smart_cache_util import smart_cache, KeyStrategy, initialize_cache_with_smart_cache
 
 class GraphState(TypedDict):
     """
@@ -42,6 +42,7 @@ class GraphState(TypedDict):
     sources: List[dict]
     is_relevant: bool
     is_hallucination: bool
+    final_answer: str
 
 
 class EnhancedGraphRAGAgent:
@@ -51,8 +52,8 @@ class EnhancedGraphRAGAgent:
         self, 
         retriever, 
         tavily_api_key: str,
-        model_name: str = DEFAULT_MODEL,
-        temperature: float = DEFAULT_TEMPERATURE
+        model_name: str = openai_config.DEFAULT_MODEL,
+        temperature: float = openai_config.DEFAULT_TEMPERATURE
     ):
         """
         RAG 에이전트 초기화
@@ -63,9 +64,12 @@ class EnhancedGraphRAGAgent:
             model_name: 사용할 LLM 모델명
             temperature: 생성 다양성 파라미터
         """
+        initialize_cache_with_smart_cache(1)
         self.retriever = retriever
         self.tavily_api_key = tavily_api_key
         self.model_name = model_name
+        openai_config.DEFAULT_MODEL = model_name
+        openai_config.DEFAULT_TEMPERATURE = temperature
         self.temperature = temperature
         
         self.setup_apis()
@@ -190,7 +194,7 @@ class EnhancedGraphRAGAgent:
             "answer": ""
         }
     
-    def relevance_checker(self, state: GraphState) -> Dict[str, Any]:
+    def relevance_checker(self, state: GraphState, debug=False) -> Dict[str, Any]:
         """
         관련성 체크 노드: 검색된 문서가 쿼리와 관련 있는지 확인
         """
@@ -205,6 +209,10 @@ class EnhancedGraphRAGAgent:
         is_relevant = False
         
         for doc in documents:
+            if debug:
+                print(f"[debug] query={query}")
+                print(f"[debug] document={doc.page_content}")
+
             score = self.retrieval_grader.invoke(
                 {"question": query, "document": doc.page_content}
             )
@@ -227,7 +235,8 @@ class EnhancedGraphRAGAgent:
             "answer": "",
             "is_relevant": is_relevant
         }
-    
+
+    @smart_cache(prefix='search_trivily', key_strategy=KeyStrategy.CONTENT)
     def search_trivily(self, state: GraphState) -> Dict[str, Any]:
         """
         Trivily 검색 노드: 관련성이 없을 때 추가 검색 수행
@@ -385,11 +394,11 @@ class EnhancedGraphRAGAgent:
             source_text += f"\n{i}. {source['title']} - {source['url']}"
 
         final_answer = answer + source_text
-        print(f"최종 답변: {final_answer}")
+        state['final_answer'] = final_answer
+        #print(f"최종 답변: {final_answer}")
 
-        return {
-            "final_answer": final_answer  # "final_answer" 대신 "generation"으로 일관성 유지
-        }
+        # 상태에 final_answer 추가 (딕셔너리 반환 아님)
+        return {"final_answer": final_answer}
 
     def handle_relevance_failure(self, state: GraphState) -> Dict[str, Any]:
         """
@@ -449,25 +458,23 @@ class EnhancedGraphRAGAgent:
         """
         inputs = {"question": query}
         result = None
-        
-        for output in self.app.stream(inputs):
-            for key, value in output.items():
-                print(f"Finished running: {key}")
-                result = value
-        
+
+        result = self.app.invoke(inputs)
+
         if result and "final_answer" in result:
             return {
                 "question": query,
                 "answer": result["final_answer"]
             }
         else:
+            print("디버깅:", result)  # 실제 결과 구조 확인
             return {
                 "question": query,
                 "answer": "답변을 생성하는 데 실패했습니다."
             }
 
 
-def create_enhanced_graph_rag_agent(retriever, tavily_api_key, model_name=DEFAULT_MODEL, temperature=DEFAULT_TEMPERATURE):
+def create_enhanced_graph_rag_agent(retriever, tavily_api_key, model_name=openai_config.DEFAULT_MODEL, temperature=openai_config.DEFAULT_TEMPERATURE):
     """
     향상된 LangGraph 기반 RAG 에이전트를 생성합니다.
     

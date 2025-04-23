@@ -1,182 +1,149 @@
-# LangGraph 기반 RAG 에이전트
+# LangGraph 기반 향상된 RAG 에이전트
 
-이 프로젝트는 LangGraph를 활용하여 상태 기반 RAG(Retrieval-Augmented Generation) 에이전트를 구현합니다. 기본 버전과 향상된 버전을 제공하여 다양한 활용 사례에 맞게 사용할 수 있습니다.
+이 프로젝트는 LangGraph를 활용하여 상태 기반 RAG(Retrieval-Augmented Generation) 에이전트를 구현합니다. 특히 할루시네이션 탐지와 관련성 검사를 통합한 향상된 검색 증강 생성 시스템을 제공합니다.
 
-## 기능
+## 주요 기능
 
-### 기본 버전 (GraphRAGAgent)
-- 벡터 스토어와 웹 검색을 통합한 RAG 시스템
-- LangGraph를 사용한 상태 기반 워크플로우
-- 문서 관련성 평가 및 할루시네이션 검사
-- 문서 출처 추적 및 포맷팅
+- **그래프 기반 상태 관리**: LangGraph를 활용하여 복잡한 워크플로우를 그래프로 구성
+- **관련성 평가**: 검색된 문서의 관련성을 평가하고 필터링
+- **할루시네이션 탐지**: 생성된 답변이 검색된 문서에 기반하는지 확인
+- **다중 검색 경로**: 로컬 벡터 스토어와 Tavily 웹 검색을 통합
+- **적응형 검색 전략**: 관련 문서를 찾지 못하면 대체 검색 경로로 전환
+- **출처 추적**: 생성된 답변에 대한 출처 정보 제공
 
-### 향상된 버전 (EnhancedGraphRAGAgent)
-- 다중 검색 소스 지원 (벡터 스토어, 웹 검색, 지식 그래프 등)
-- 문서 클러스터링 및 우선순위 지정
-- 사용자 정의 프롬프트 템플릿
-- 답변 신뢰도 평가
-- 상세한 결과 분석 및 메타데이터 제공
+## 아키텍처
+
+EnhancedGraphRAGAgent는 다음과 같은 노드로 구성된 그래프 기반 워크플로우를 구현합니다:
+
+1. **docs_retrieval**: 벡터 스토어에서 문서 검색
+2. **relevance_checker**: 검색된 문서의 관련성 평가
+3. **search_trivily**: 벡터 스토어에서 관련 문서를 찾지 못한 경우 웹 검색 실행
+4. **generate_answer**: 관련 문서를 기반으로 답변 생성
+5. **hallucination_checker**: 생성된 답변이 문서에 근거하는지 검사
+6. **finalize_answer**: 출처 정보를 포함하여 최종 답변 구성
+7. **handle_relevance_failure** / **handle_hallucination_failure**: 검색/생성 실패 처리
+
+## 워크플로우 다이어그램
+
+```
+[docs_retrieval] → [relevance_checker] → (관련성 있음) → [generate_answer] → [hallucination_checker] → (근거 있음) → [finalize_answer]
+                                       → (관련성 없음) → [search_trivily] → [relevance_checker]
+                                       → (실패) → [handle_relevance_failure]
+                                                                         → (근거 없음) → [generate_answer]
+                                                                         → (실패) → [handle_hallucination_failure]
+```
 
 ## 설치 방법
 
-1. 기본 의존성 설치
+1. 필요한 패키지 설치:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-2. 테스트 및 추가 기능을 위한 의존성 설치
-```bash
-pip install -r requirements_test.txt
-```
+2. API 키 설정:
+   - OpenAI API 키: `config/openai_key.txt` 파일에 저장
+   - Tavily API 키: `config/tavily_key.txt` 파일에 저장
 
 ## 사용 방법
 
-### 기본 버전
+### 기본 사용법
 
 ```python
 from src.config.tavily_config import get_tavily_api_key
-from src.rag.graph_agent import create_graph_rag_agent
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from src.retrieval.retriever import get_retriever
+from src.rag.enhanced_graph_agent import EnhancedGraphRAGAgent
 
-# 벡터 스토어 로드
-vectorstore = Chroma(
-    persist_directory="./chroma_db",
-    embedding_function=OpenAIEmbeddings(model="text-embedding-3-small")
-)
+# 검색기 생성
+retriever = get_retriever()
 
 # RAG 에이전트 생성
-agent = create_graph_rag_agent(
-    retriever=vectorstore.as_retriever(),
+agent = EnhancedGraphRAGAgent(
+    retriever=retriever,
     tavily_api_key=get_tavily_api_key()
 )
 
-# 쿼리 실행
+# 질문 실행
 result = agent.run("프롬프트 엔지니어링이란 무엇인가요?")
 
 # 결과 출력
 print(f"질문: {result['question']}")
 print(f"답변: {result['answer']}")
-print(f"출처: {result['formatted_sources']}")
 ```
 
-### 향상된 버전
+### 메인 모듈에서 사용하기
 
 ```python
-from src.config.tavily_config import get_tavily_api_key
-from src.rag.enhanced_graph_agent import (
-    create_enhanced_graph_rag_agent,
-    create_default_search_sources,
-    EnhancedPromptTemplates
-)
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from src.main_enhanced_graph_rag_agent import run_graph_rag_query
 
-# 벡터 스토어 로드
-vectorstore = Chroma(
-    persist_directory="./chroma_db",
-    embedding_function=OpenAIEmbeddings(model="text-embedding-3-small")
-)
-
-# 검색 소스 생성
-search_sources = create_default_search_sources(vectorstore.as_retriever())
-
-# 사용자 정의 프롬프트 템플릿 (선택 사항)
-custom_prompts = EnhancedPromptTemplates(
-    answer_generator="""당신은 질문에 답변하는 전문가입니다.
-    다음 컨텍스트를 사용하여 질문에 답변하세요.
-    모르는 경우 모른다고 답변하세요.
-    최대 세 문장으로 간결하게 답변하세요."""
-)
-
-# 향상된 RAG 에이전트 생성
-agent = create_enhanced_graph_rag_agent(
-    search_sources=search_sources,
-    tavily_api_key=get_tavily_api_key(),
-    prompt_templates=custom_prompts,
-    enable_clustering=True,
-    enable_confidence=True
-)
-
-# 쿼리 실행
-result = agent.run("프롬프트 엔지니어링이란 무엇인가요?")
-
-# 결과 출력
-print(f"질문: {result['question']}")
-print(f"답변: {result['answer']}")
-print(f"신뢰도: {result['confidence']}")
-print(f"출처: {result['formatted_sources']}")
-print(f"분석: {result['analysis']}")
-```
-
-## 메인 모듈에서 사용하기
-
-메인 모듈에서는 `run_graph_rag_query` 함수를 사용하여 간편하게 실행할 수 있습니다:
-
-```python
-from src.main import run_graph_rag_query
-
-# 기존 RAG 체인으로 실행
+# 질문 실행
 result = run_graph_rag_query("프롬프트 엔지니어링이란 무엇인가요?")
 
+# 결과 출력
 print(f"질문: {result['question']}")
 print(f"답변: {result['answer']}")
-print(f"출처: {result['formatted_sources']}")
 ```
 
-## 테스트 실행
+## 주요 구현 클래스 및 함수
 
-테스트를 실행하려면 다음 명령을 사용하세요:
+### GraphState
+워크플로우의 상태를 관리하는 TypedDict 클래스입니다:
 
-```bash
-# 모든 단위 테스트 실행
-python src/tests/run_tests.py
-
-# 통합 테스트 실행 (실제 API 호출)
-python src/tests/run_tests.py --int
-
-# 특정 테스트 실행
-python src/tests/run_tests.py test_graph_agent.TestGraphRAGAgent.test_retrieve
-```
-
-## 확장 방법
-
-1. 새로운 검색 소스 추가:
 ```python
-from src.rag.enhanced_graph_agent import SearchSource
-
-# 새로운 검색 소스 추가
-knowledge_graph_retriever = ... # 지식 그래프 검색기 구현
-new_source = SearchSource(
-    name="knowledge_graph",
-    retriever=knowledge_graph_retriever,
-    weight=0.9,
-    enabled=True
-)
-
-# 기존 소스와 함께 사용
-search_sources = create_default_search_sources(vectorstore.as_retriever())
-search_sources.append(new_source)
-
-# 에이전트 생성
-agent = create_enhanced_graph_rag_agent(search_sources=search_sources, ...)
+class GraphState(TypedDict):
+    question: str                # 사용자 질문
+    documents: List[Document]    # 검색된 문서 목록
+    answer: str                  # 생성된 답변
+    relevance_count: int         # 관련성 체크 재귀 카운트
+    hallucination_count: int     # 유해성 체크 생성 카운트
+    sources: List[dict]          # 출처 정보
+    is_relevant: bool            # 관련성 여부
+    is_hallucination: bool       # 유해성 여부
 ```
 
-2. 사용자 정의 프롬프트 템플릿:
+### EnhancedGraphRAGAgent
+LangGraph 기반 향상된 RAG 에이전트 클래스입니다:
+
 ```python
-from src.rag.enhanced_graph_agent import EnhancedPromptTemplates
-
-custom_prompts = EnhancedPromptTemplates(
-    router="당신은 질문을 적절한 데이터 소스로 라우팅하는 전문가입니다. 사용 가능한 소스: {datasources}",
-    answer_generator="당신은 한국어로 답변하는 도우미입니다. 다음 컨텍스트를 사용하여 최대 세 문장으로 답변하세요."
-)
-
-agent = create_enhanced_graph_rag_agent(prompt_templates=custom_prompts, ...)
+class EnhancedGraphRAGAgent:
+    def __init__(self, retriever, tavily_api_key, model_name=DEFAULT_MODEL, temperature=DEFAULT_TEMPERATURE):
+        # 에이전트 초기화
+        
+    def setup_apis(self):
+        # API 클라이언트 설정
+        
+    def setup_chains(self):
+        # 프롬프트 체인 설정
+        
+    def setup_workflow(self):
+        # 워크플로우 그래프 설정
+        
+    def run(self, query: str) -> Dict[str, Any]:
+        # RAG 에이전트 실행
 ```
 
-## 주의사항
+## 프롬프트 템플릿
 
-- Tavily API 키가 필요합니다. `src/config/tavily_key.txt` 파일에 저장하거나 환경 변수로 설정하세요.
-- 기본 버전과 향상된 버전 모두 LangGraph를 사용하며, 이는 상태 관리를 위한 추가 요구 사항이 있습니다.
-- 향상된 버전의 클러스터링은 scikit-learn을 사용하므로 테스트 의존성을 설치해야 합니다.
-- 신뢰도 평가와 분석 기능은 추가 API 호출을 발생시킬 수 있습니다. 
+에이전트는 다음과 같은 주요 프롬프트 템플릿을 사용합니다:
+
+1. **문서 관련성 평가**: 검색된 문서가 질문과 관련이 있는지 평가
+2. **답변 생성**: 관련 문서를 기반으로 답변을 생성
+3. **할루시네이션 평가**: 생성된 답변이 문서에 근거하는지 평가
+
+## 유의사항
+
+- 관련성 체크와 할루시네이션 검사는 최대 1회씩 재시도됩니다.
+- 문서 검색에 실패하면 Tavily 웹 검색으로 대체됩니다.
+- 모든 검색에 실패하면 적절한 오류 메시지가 반환됩니다.
+- 할루시네이션이 감지되면 답변을 재생성하여 문서에 더 충실한 답변을 생성합니다.
+
+## 확장 방향
+
+- **다중 검색 소스**: 추가 벡터 스토어나 검색 엔진 통합
+- **사용자 정의 프롬프트**: 도메인별 프롬프트 템플릿 구성
+- **계층적 검색**: RAPTOR와 같은 계층적 검색 방식 통합
+- **다국어 지원**: 다양한 언어에 대한 프롬프트 최적화
+
+## 라이센스
+
+이 프로젝트는 MIT 라이센스 하에 공개되어 있습니다. 

@@ -8,6 +8,7 @@
 - **할루시네이션 감지**: 생성된 답변에 할루시네이션이 있는지 검사하고, 발견 시 재시도
 - **관련성 평가**: 검색된 문서가 실제로 질문과 관련이 있는지 평가하고 필터링
 - **RAPTOR 인덱스**: 계층적 구조를 활용한 개선된 검색 방식 구현
+- **LangGraph 기반 에이전트**: 그래프 구조로 워크플로우를 구성하여 복잡한 RAG 시스템 구현
 - **벤치마킹 도구**: 시스템 성능 평가를 위한 도구 제공
 
 ## 프로젝트 구조
@@ -16,7 +17,8 @@
 src/
 ├── config/                 # 설정 관련 모듈
 │   ├── __init__.py
-│   └── openai_config.py    # OpenAI API 설정
+│   ├── openai_config.py    # OpenAI API 설정
+│   └── tavily_config.py    # Tavily API 설정
 ├── data_loader/            # 데이터 로딩 관련 모듈
 │   ├── __init__.py
 │   └── web_loader.py       # 웹 URL에서 데이터 로드
@@ -36,7 +38,8 @@ src/
 ├── rag/                    # RAG 관련 모듈
 │   ├── __init__.py
 │   ├── answer_chain.py     # 답변 생성 체인
-│   └── rag_chain.py        # RAG 체인 구현
+│   ├── rag_chain.py        # RAG 체인 구현
+│   └── enhanced_graph_agent.py # LangGraph 기반 RAG 에이전트
 ├── raptor/                 # RAPTOR 관련 모듈
 │   ├── __init__.py
 │   ├── raptor_index.py     # RAPTOR 인덱스 구현
@@ -44,7 +47,8 @@ src/
 ├── utils/                  # 유틸리티 모듈
 │   ├── __init__.py
 │   └── benchmark.py        # 벤치마킹 도구
-└── main.py                 # 메인 실행 모듈
+├── main.py                 # 메인 실행 모듈
+└── main_enhanced_graph_rag_agent.py # 향상된 그래프 RAG 에이전트 실행 모듈
 ```
 
 ## 설치 방법
@@ -55,8 +59,9 @@ src/
 pip install -r requirements.txt
 ```
 
-2. OpenAI API 키 설정:
-   - `config/openai_key.txt` 파일에 API 키를 저장
+2. API 키 설정:
+   - OpenAI API 키: `config/openai_key.txt` 파일에 저장
+   - Tavily API 키: `config/tavily_key.txt` 파일에 저장 (웹 검색용)
 
 ## 사용 방법
 
@@ -99,6 +104,20 @@ question = "이 문서들의 핵심 내용은 무엇인가요?"
 result = run_raptor_query(question)
 
 # 결과 출력
+print(f"답변: {result['answer']}")
+```
+
+### LangGraph 기반 RAG 에이전트 사용
+
+```python
+from src.main_enhanced_graph_rag_agent import run_graph_rag_query
+
+# 질문 실행
+question = "프롬프트 엔지니어링이란 무엇인가요?"
+result = run_graph_rag_query(question)
+
+# 결과 출력
+print(f"질문: {result['question']}")
 print(f"답변: {result['answer']}")
 ```
 
@@ -153,6 +172,7 @@ print(f"F1 점수: {evaluation_result['f1']:.3f}")
 - 관련성 평가 통합 RAG 체인
 - 할루시네이션 검사 통합 RAG 체인
 - 답변 생성 체인
+- LangGraph 기반 향상된 RAG 에이전트
 
 ### 7. RAPTOR (`raptor`)
 
@@ -164,6 +184,30 @@ print(f"F1 점수: {evaluation_result['f1']:.3f}")
 
 - 쿼리 목록에 대한 테스트 도구
 - 종합적인 평가 메트릭 계산 (정확도, 정밀도, 재현율, F1 점수 등)
+
+## LangGraph 기반 향상된 RAG 에이전트
+
+LangGraph를 활용해 상태 기반 워크플로우를 그래프로 구성한 향상된 RAG 시스템입니다.
+
+### 주요 특징
+
+- **그래프 기반 상태 관리**: 복잡한 워크플로우를 노드와 엣지로 구성
+- **관련성 평가 및 할루시네이션 탐지**: 검색 결과와 답변의 품질 보장
+- **다중 검색 경로**: 로컬 벡터 스토어와 Tavily 웹 검색을 통합
+- **적응형 검색 전략**: 관련 문서를 찾지 못하면 대체 검색 경로로 전환
+- **출처 추적**: 생성된 답변에 대한 출처 정보 제공
+
+### 워크플로우
+
+```
+[docs_retrieval] → [relevance_checker] → (관련성 있음) → [generate_answer] → [hallucination_checker] → (근거 있음) → [finalize_answer]
+                                       → (관련성 없음) → [search_trivily] → [relevance_checker]
+                                       → (실패) → [handle_relevance_failure]
+                                                                         → (근거 없음) → [generate_answer]
+                                                                         → (실패) → [handle_hallucination_failure]
+```
+
+자세한 정보는 [README_RAG_AGENT.md](README_RAG_AGENT.md)를 참조하세요.
 
 ## 라이센스
 

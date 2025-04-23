@@ -159,7 +159,8 @@ def evaluate_system(yes_queries, no_queries, persist_directory="./chroma_db"):
 
     return result
 
-
+from src.rag.enhanced_graph_agent import EnhancedGraphRAGAgent
+from src.retrieval.retriever import get_retriever
 if __name__ == "__main__":
     """
     예제 코드 - URL에서 문서를 로드하고 벡터 스토어를 생성한 후 쿼리를 실행합니다.
@@ -179,41 +180,51 @@ if __name__ == "__main__":
     # 1. 벡터 스토어 생성
     print("\n=== 벡터 스토어 생성 ===")
     vectorstore = setup_vector_store(urls)
-    
+
+    # Retriever 생성
+    retriever = get_retriever()
+
     # 2. 쿼리 실행
     print("\n=== 쿼리 실행 ===")
     good_question = "LangChain의 Retriever란 무엇인가요?"
     hall_question = "Lil'Log의 저자 Lilian Weng이 2024년에 발표한 Autonomous Agent 2.0 프레임워크의 핵심 기능 3가지를 설명해주세요."
     question = hall_question
 
-    # 기존 RAG 체인으로 실행
-    print("\n=== 기존 RAG 체인 ===")
-    result = run_rag_query(question)
+    agent = EnhancedGraphRAGAgent(
+        retriever=retriever,
+        tavily_api_key=get_tavily_api_key()
+    )
     
-    # 결과 출력
-    print(f"질문: {question}")
+    # 3. Messi 관련 테스트 코드 실행
+    print("\n=== Messi 관련 테스트 실행 ===")
+    from pprint import pprint
+    
+    # Messi 관련 질문으로 테스트
+    messi_question = "Where does Messi play right now?"
+    inputs = {"question": messi_question}  # "question"에서 "query"로 변경
+
+    # 에이전트의 app 속성에 직접 접근하여 스트림 실행
+    for output in agent.app.stream(inputs):
+        print(f"!!!!!!!!!!!!! Streaming output: {output}")
+        if output is not None:  # output이 None이 아닌 경우에만 처리
+            for key, value in output.items():
+                print(f"Finished running: {key}:")
+                # value가 None이 아닌 경우에만 처리
+                if value is not None:
+                    # final_answer 키가 있으면 그 값을 출력 (우선순위 1)
+                    if isinstance(value, dict) and "final_answer" in value:
+                        pprint(value["final_answer"])
+                    # generation 키가 있으면 그 값을 출력 (우선순위 2)
+                    elif isinstance(value, dict) and "generation" in value:
+                        pprint(value["generation"])
+                    # 그 외의 경우 전체 상태 출력
+                    else:
+                        pprint(value)
+
+    # 기존 질문으로도 테스트
+    '''
+    print("\n=== 기존 질문 테스트 실행 ===")
+    result = agent.run(question)
+    print(f"질문: {result['question']}")
     print(f"답변: {result['answer']}")
-    print(f"할루시네이션 발견: {'예' if result.get('hallucination_detected', False) else '아니오'}")
-    print(f"\n출처:\n{result['formatted_sources']}")
-
-    # LangGraph 기반 RAG 체인으로 실행
-    print("\n=== LangGraph 기반 RAG 체인 ===")
-    graph_result = run_graph_rag_query(question)
-    
-    # 결과 출력
-    print(f"질문: {question}")
-    print(f"답변: {graph_result['answer']}")
-    print(f"\n출처:\n{graph_result['formatted_sources']}")
-
-    yes_query_list = [
-        "LLM 기반 자율 에이전트 시스템의 계획, 메모리, 도구 사용 구성 요소에 대해 설명하고, 이를 개발 워크플로우에 어떻게 통합할 수 있을까요?",
-        "Chain-of-Thought와 같은 프롬프트 엔지니어링 기법이 복잡한 추론 작업에서 LLM의 성능을 어떻게 향상시키는지 설명해주세요.",
-        "LLM에 대한 적대적 공격 유형(토큰 조작, 그래디언트 기반 공격, 탈옥 프롬프팅 등)의 작동 방식과 이에 대한 방어 전략은 무엇인가요?" ##리펙터링후, 제대로 동작되지 않는 케이스 ; 추후 확인
-    ]
-    no_query_list = [
-        "맨체스터 유나이티드의 2023-2024 시즌 성적과 주요 선수들의 활약상에 대해 분석해주세요.",
-        "백종원 셰프의 간단한 김치찌개 레시피와 비법을 알려주세요.",
-        "중세 유럽 건축양식의 변천사와 고딕 양식의 특징에 대해 설명해주세요."
-    ]
-    evaluate_system(yes_query_list, no_query_list)
-    
+    '''

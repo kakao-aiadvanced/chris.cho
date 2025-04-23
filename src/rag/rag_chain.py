@@ -9,7 +9,8 @@ from src.retrieval.retriever import format_docs, format_sources
 from src.evaluation.relevance import create_relevance_evaluation_chain
 from src.evaluation.hallucination import create_hallucination_evaluation_chain, create_enhanced_hallucination_evaluation_chain
 from src.rag.answer_chain import create_answer_chain
-
+from src.rag.graph_agent import GraphRAGAgent
+from langchain_chroma import Chroma
 def create_rag_chain_with_relevance(retriever: Callable):
     """
     관련성 평가를 통합한 RAG 체인을 생성합니다.
@@ -373,4 +374,39 @@ def run_rag_chain_with_relevance(question: str, persist_directory: str = "./chro
     # 체인 실행
     result = rag_chain.invoke({"question": question})
 
+    return result
+
+
+def run_graph_rag_chain(question, persist_directory="./chroma_db", tavily_api_key=None):
+    """
+    LangGraph 기반 RAG 체인을 실행합니다.
+
+    Args:
+        question: 사용자 질문
+        persist_directory: 벡터 스토어 디렉토리
+        tavily_api_key: Tavily API 키 (없으면 환경 변수에서 로드)
+
+    Returns:
+        Dict: 생성된 답변과 문서 정보 포함
+    """
+    # 벡터 스토어 로드
+    vectorstore = Chroma(persist_directory=persist_directory, embedding_function=OpenAIEmbeddings(model=DEFAULT_EMBEDDING_MODEL))
+    
+    # API 키 설정
+    if not tavily_api_key:
+        import os
+        tavily_api_key = os.environ.get("TAVILY_API_KEY", "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")
+    
+    # RAG 에이전트 초기화 및 실행
+    agent = GraphRAGAgent(
+        retriever=vectorstore.as_retriever(),
+        tavily_api_key=tavily_api_key
+    )
+    
+    # 쿼리 실행
+    result = agent.run(question)
+    
+    # 할루시네이션 정보 추가 (호환성 유지)
+    result["hallucination_detected"] = False
+    
     return result
